@@ -17,14 +17,14 @@ module load gatk/3.8
 module load samtools
 
 #Move to fastq containing directory
-cd /scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/sra/raw/
+cd /scratch/bell/blackan/sparrow/Ammospiza_caudacuta/sra/raw/
 #Make sample list
 ls -1 *.fastq | sed "s/_[1-2].fastq//g" | uniq > sample.list
 #Make directory to hold all SLURMM jobs
 mkdir jobs
 #Define variables to shorten commands
-REF=/scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa
-DICT=/scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.dict
+REF=/scratch/bell/blackan/sparrow/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa
+DICT=/scratch/bell/blackan/sparrow/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.dict
 
 bwa index $REF
 #samtools faidx $REF
@@ -50,10 +50,10 @@ module load gatk/3.8
 module load samtools
 
 #Move to the paired-end fastq containing folder
-cd /scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/sra/raw/
+cd /scratch/bell/blackan/sparrow/Ammospiza_caudacuta/sra/raw/
 # Align sample to indexed reference genome
 bwa mem -t 10 -M -R \"@RG\tID:group1\tSM:${line[0]}\tPL:illumina\tLB:lib1\tPU:unit1\" \
-/scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa \
+/scratch/bell/blackan/sparrow/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa \
 ${line[0]}_1.fastq ${line[0]}_2.fastq > ../aligned/${line[0]}.sam
 #Move to aligned directory
 cd ../aligned/
@@ -77,9 +77,9 @@ PicardCommandLine MarkDuplicates INPUT=sorted_${line[0]}.bam OUTPUT=dedup_${line
 #Index in prep for realignment
 PicardCommandLine BuildBamIndex INPUT=dedup_${line[0]}.bam
 # local realignment of reads
-GenomeAnalysisTK -T RealignerTargetCreator -nt 10 -R /scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa -I dedup_${line[0]}.bam -o ${line[0]}_forIndelRealigner.intervals
+GenomeAnalysisTK -T RealignerTargetCreator -nt 10 -R /scratch/bell/blackan/sparrow/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa -I dedup_${line[0]}.bam -o ${line[0]}_forIndelRealigner.intervals
 #Realign with established intervals
-GenomeAnalysisTK -T IndelRealigner -R /scratch/bell/blackan/SWALLOW/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa -I dedup_${line[0]}.bam -targetIntervals ${line[0]}_forIndelRealigner.intervals -o ${line[0]}_indel.bam
+GenomeAnalysisTK -T IndelRealigner -R /scratch/bell/blackan/sparrow/Ammospiza_caudacuta/GCF_027887145.1_ref/ref.fa -I dedup_${line[0]}.bam -targetIntervals ${line[0]}_forIndelRealigner.intervals -o ${line[0]}_indel.bam
 #Make new directory
 #Fix mate info
 PicardCommandLine FixMateInformation INPUT=dedup_${line[0]}.bam OUTPUT=${line[0]}.fixmate.bam SO=coordinate CREATE_INDEX=true
@@ -92,16 +92,7 @@ cd ../final_bams/
 #Index bam file
 PicardCommandLine BuildBamIndex INPUT=${line[0]}_filt.bam
 
-samtools depth -a ${line[0]}_filt.bam \
-| awk '{c++;s+=\$3}END{print s/c}' \
-> ${line}.post.meandepth.txt
-
-samtools depth -a ${line[0]}_filt.bam \
-| awk '{c++; if(\$3>0) total+=1}END{print (total/c)*100}' \
-> ${line}.post.1xbreadth.txt
-
 samtools view -L autosomes.bed -o ${line[0]}_auto.bam ${line[0]}_filt.bam
-samtools view -L Z.bed -o ${line[0]}_z.bam ${line[0]}_filt.bam
 
 echo done" > ./jobs/${line[0]}_aln.sh
 
